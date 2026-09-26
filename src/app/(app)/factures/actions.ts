@@ -7,6 +7,7 @@ import { requireWriteAccess, logActivity } from "@/lib/action-guard";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { parseLineItems, computeTotals } from "@/lib/line-items";
 import { recordAccountingEntry } from "@/lib/accounting";
+import { runAutomationRules } from "@/lib/automation";
 import type { InvoiceStatus, InvoiceType, PaymentMethod } from "@/generated/prisma/client";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["VIREMENT", "CHEQUE", "CB", "ESPECES", "AUTRE"];
@@ -79,7 +80,7 @@ export async function updateInvoiceStatus(
   status: InvoiceStatus
 ): Promise<void> {
   const user = await requireWriteAccess("factures");
-  await prisma.invoice.update({ where: { id }, data: { status } });
+  const invoice = await prisma.invoice.update({ where: { id }, data: { status } });
   await logActivity({
     userId: user.id,
     action: "invoice.status_changed",
@@ -87,6 +88,7 @@ export async function updateInvoiceStatus(
     entityId: id,
     changes: { status },
   });
+  await runAutomationRules("invoice", "status_changed", { ...invoice, id });
   revalidatePath(`/factures/${id}`);
   revalidatePath("/factures");
 }

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireWriteAccess, logActivity } from "@/lib/action-guard";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { parseLineItems, computeTotals } from "@/lib/line-items";
+import { runAutomationRules } from "@/lib/automation";
 import type { QuoteStatus } from "@/generated/prisma/client";
 
 export async function createQuote(
@@ -72,7 +73,7 @@ export async function updateQuoteStatus(
   status: QuoteStatus
 ): Promise<void> {
   const user = await requireWriteAccess("devis");
-  await prisma.quote.update({ where: { id }, data: { status } });
+  const quote = await prisma.quote.update({ where: { id }, data: { status } });
   await logActivity({
     userId: user.id,
     action: "quote.status_changed",
@@ -80,6 +81,7 @@ export async function updateQuoteStatus(
     entityId: id,
     changes: { status },
   });
+  await runAutomationRules("quote", "status_changed", { ...quote, id });
   revalidatePath(`/devis/${id}`);
   revalidatePath("/devis");
 }

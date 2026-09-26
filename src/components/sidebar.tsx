@@ -9,6 +9,8 @@ const NAV_GROUPS = [
     links: [
       { href: "/dashboard", label: "Dashboard" },
       { href: "/reporting", label: "Reporting" },
+      { href: "/assistant", label: "Assistant IA" },
+      { href: "/automatisations", label: "Automatisations" },
       { href: "/journal", label: "Journal d'activité" },
     ],
   },
