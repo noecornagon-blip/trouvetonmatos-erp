@@ -60,3 +60,21 @@ Ouvrez [http://localhost:3000](http://localhost:3000) et connectez-vous avec l'u
 npm run build
 npm run start
 ```
+
+## Déploiement en ligne (Vercel)
+
+1. Cliquez sur ce lien pour importer le dépôt dans Vercel (connexion avec votre compte GitHub) :
+   [Déployer sur Vercel](https://vercel.com/new/clone?repository-url=https://github.com/noecornagon-blip/trouvetonmatos-erp)
+2. Pendant l'import, ajoutez une base de données Postgres : dans l'écran de configuration du projet, section **Storage**, ajoutez **Postgres** (Neon) — Vercel remplit automatiquement `DATABASE_URL`.
+3. Ajoutez les variables d'environnement restantes (section **Environment Variables**) :
+   - `NEXTAUTH_SECRET` : générez-en un avec `openssl rand -base64 32`
+   - `ANTHROPIC_API_KEY` (optionnel, pour l'assistant IA)
+4. Déployez. Le build applique automatiquement les migrations (`prisma migrate deploy`) — la base sera créée mais vide.
+5. Une fois déployé, chargez les données de démonstration en exécutant une fois, depuis votre machine ou ce projet, avec `DATABASE_URL` pointant vers la base de production :
+   ```bash
+   npx prisma db seed
+   ```
+
+Les déploiements suivants se font automatiquement à chaque `git push` sur `main`.
+
+> Note : le module Documents stocke les fichiers sur le disque du serveur, qui n'est pas persistant sur Vercel (environnement serverless). L'upload y affichera un message d'erreur explicite tant qu'un stockage externe (ex: Vercel Blob) n'est pas configuré.

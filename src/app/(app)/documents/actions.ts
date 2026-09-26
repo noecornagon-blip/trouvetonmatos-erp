@@ -22,11 +22,16 @@ export async function uploadDocument(
   if (!file || file.size === 0) return "Sélectionnez un fichier.";
   if (file.size > 20 * 1024 * 1024) return "Fichier trop volumineux (max 20 Mo).";
 
-  await mkdir(UPLOAD_DIR, { recursive: true });
   const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
   const storedName = `${randomUUID()}-${safeName}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(UPLOAD_DIR, storedName), buffer);
+
+  try {
+    await mkdir(UPLOAD_DIR, { recursive: true });
+    await writeFile(path.join(UPLOAD_DIR, storedName), buffer);
+  } catch {
+    return "Stockage de fichiers non disponible sur cet hébergement (système de fichiers en lecture seule). Contactez un administrateur pour configurer un stockage externe.";
+  }
 
   const document = await prisma.document.create({
     data: {
