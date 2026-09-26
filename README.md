@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TrouveTonMatos — Cockpit ERP/CRM interne
 
-## Getting Started
+Application interne de gestion pour TrouveTonMatos (CRM, sourcing, devis,
+ventes, achats, factures, trésorerie, et plus). Next.js 16 + Prisma 7 +
+PostgreSQL.
 
-First, run the development server:
+## Prérequis
+
+- [Node.js](https://nodejs.org/) 22 ou plus récent
+- [PostgreSQL](https://www.postgresql.org/download/) 16 ou plus récent (en local, ou un service comme Neon/Supabase/Railway)
+- [Git](https://git-scm.com/)
+
+## Installation
+
+```bash
+git clone https://github.com/noecornagon-blip/trouvetonmatos-erp.git
+cd trouvetonmatos-erp
+npm install
+```
+
+## Configuration
+
+Copiez `.env.example` en `.env` et renseignez vos valeurs :
+
+```bash
+cp .env.example .env
+```
+
+- `DATABASE_URL` : connexion à votre base PostgreSQL
+- `NEXTAUTH_SECRET` : générez-en un avec `openssl rand -base64 32`
+- `ANTHROPIC_API_KEY` (optionnel) : pour activer la page Assistant IA
+
+Si vous n'avez pas encore de base PostgreSQL locale, créez-la (adaptez les identifiants à ceux mis dans `DATABASE_URL`) :
+
+```bash
+createdb trouvetonmatos_erp
+```
+
+## Base de données
+
+```bash
+npx prisma migrate deploy   # applique le schéma
+npx prisma db seed          # crée des comptes et données de démonstration
+```
+
+Le seed affiche la liste des comptes créés. Le mot de passe de tous les
+comptes de démonstration est `ChangeMe123!` — à changer en production.
+
+## Lancer l'application
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrez [http://localhost:3000](http://localhost:3000) et connectez-vous avec l'un des comptes affichés par le seed (par exemple `jean.dupont@trouvetonmatos.fr`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Build de production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run build
+npm run start
+```
