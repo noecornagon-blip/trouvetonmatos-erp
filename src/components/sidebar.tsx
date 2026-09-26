@@ -8,6 +8,7 @@ const NAV_GROUPS = [
     label: "Pilotage",
     links: [
       { href: "/dashboard", label: "Dashboard" },
+      { href: "/reporting", label: "Reporting" },
       { href: "/journal", label: "Journal d'activité" },
     ],
   },
@@ -39,7 +40,11 @@ const NAV_GROUPS = [
   },
   {
     label: "Organisation",
-    links: [{ href: "/taches", label: "Tâches" }],
+    links: [
+      { href: "/taches", label: "Tâches" },
+      { href: "/documents", label: "Documents" },
+      { href: "/reseaux-sociaux", label: "Réseaux sociaux" },
+    ],
   },
 ];
 
