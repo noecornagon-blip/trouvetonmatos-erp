@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireWriteAccess, logActivity } from "@/lib/action-guard";
 import { nextDocumentNumber } from "@/lib/numbering";
 import { parseLineItems, computeTotals } from "@/lib/line-items";
+import { recordAccountingEntry } from "@/lib/accounting";
 import type { InvoiceStatus, InvoiceType, PaymentMethod } from "@/generated/prisma/client";
 
 const PAYMENT_METHODS: PaymentMethod[] = ["VIREMENT", "CHEQUE", "CB", "ESPECES", "AUTRE"];
@@ -103,7 +104,7 @@ export async function addPayment(
   if (!PAYMENT_METHODS.includes(methodInput as PaymentMethod)) return;
   const method = methodInput as PaymentMethod;
 
-  await prisma.payment.create({
+  const payment = await prisma.payment.create({
     data: {
       invoiceId,
       amount,
@@ -117,6 +118,17 @@ export async function addPayment(
     where: { id: invoiceId },
     include: { payments: true },
   });
+
+  if (invoice) {
+    await recordAccountingEntry({
+      label: `Paiement facture ${invoice.number}`,
+      debitAccount: invoice.type === "FOURNISSEUR" ? "401 - Fournisseurs" : "512 - Banque",
+      creditAccount: invoice.type === "FOURNISSEUR" ? "512 - Banque" : "411 - Clients",
+      amount,
+      sourceType: "PAYMENT",
+      sourceId: payment.id,
+    });
+  }
   if (invoice) {
     const totalPaid = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0);
     if (totalPaid >= Number(invoice.totalTtc) && invoice.status !== "PAYEE") {

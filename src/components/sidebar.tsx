@@ -33,6 +33,8 @@ const NAV_GROUPS = [
     links: [
       { href: "/factures", label: "Factures" },
       { href: "/tresorerie", label: "Trésorerie" },
+      { href: "/depenses", label: "Dépenses" },
+      { href: "/tva", label: "TVA" },
     ],
   },
   {

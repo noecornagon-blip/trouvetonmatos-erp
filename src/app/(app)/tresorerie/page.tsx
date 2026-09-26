@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { createBankAccount, createBankTransaction } from "./actions";
+import { ReconcileButton } from "./reconcile-button";
 
 export default async function TresoreriePage() {
   const [accounts, transactions, upcomingClientInvoices, upcomingSupplierInvoices] =
@@ -81,7 +83,12 @@ export default async function TresoreriePage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-zinc-900">Mouvements récents</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-zinc-900">Mouvements récents</h2>
+          <Link href="/tresorerie/import" className="text-sm text-zinc-600 underline">
+            Importer un relevé CSV
+          </Link>
+        </div>
         <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
           <table className="w-full text-sm">
             <thead className="bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
@@ -91,6 +98,7 @@ export default async function TresoreriePage() {
                 <th className="px-4 py-3">Libellé</th>
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">Montant</th>
+                <th className="px-4 py-3">Rapprochement</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -108,11 +116,18 @@ export default async function TresoreriePage() {
                     {t.type === "ENCAISSEMENT" ? "+" : "-"}
                     {Number(t.amount).toLocaleString("fr-FR")} €
                   </td>
+                  <td className="px-4 py-3">
+                    {t.reconciled ? (
+                      <span className="text-xs text-emerald-600">Rapproché</span>
+                    ) : (
+                      <ReconcileButton id={t.id} />
+                    )}
+                  </td>
                 </tr>
               ))}
               {transactions.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-zinc-400">
+                  <td colSpan={6} className="px-4 py-6 text-center text-zinc-400">
                     Aucun mouvement pour le moment.
                   </td>
                 </tr>
