@@ -1,0 +1,649 @@
+// Schéma de base de données — TrouveTonMatos ERP/CRM
+// Basé sur l'analyse validée (§6 Schéma de base de données, §8 MVP recommandé)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────
+// Identité & accès
+// ─────────────────────────────────────────────────────────
+
+model Company {
+  id         String   @id @default(cuid())
+  name       String
+  siret      String?
+  vatNumber  String?
+  address    String?
+  city       String?
+  postalCode String?
+  country    String   @default("France")
+  phone      String?
+  email      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("companies")
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  users       User[]
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("roles")
+}
+
+enum PermissionAction {
+  READ
+  CREATE
+  UPDATE
+  DELETE
+  VALIDATE
+}
+
+model Permission {
+  id     String           @id @default(cuid())
+  module String
+  action PermissionAction
+  roles  RolePermission[]
+
+  @@unique([module, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  active       Boolean  @default(true)
+  roleId       String
+  role         Role     @relation(fields: [roleId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignedTasks Task[]        @relation("TaskAssignee")
+  activityLogs  ActivityLog[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────
+// CRM
+// ─────────────────────────────────────────────────────────
+
+enum CustomerType {
+  PROSPECT
+  CUSTOMER
+}
+
+enum PipelineStage {
+  PROSPECT
+  CONTACT_ETABLI
+  BESOIN_IDENTIFIE
+  RECHERCHE_MATERIEL
+  PROPOSITION
+  DEVIS
+  NEGOCIATION
+  COMMANDE
+  LIVRAISON
+  FACTURATION
+  PAYE
+}
+
+model Customer {
+  id            String        @id @default(cuid())
+  type          CustomerType  @default(PROSPECT)
+  companyName   String
+  siret         String?
+  address       String?
+  city          String?
+  postalCode    String?
+  country       String        @default("France")
+  email         String?
+  phone         String?
+  pipelineStage PipelineStage @default(PROSPECT)
+  notes         String?
+
+  contacts Contact[]
+  requests Request[]
+  quotes   Quote[]
+  sales    Sale[]
+  invoices Invoice[]
+  projects Project[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("customers")
+}
+
+model Supplier {
+  id          String  @id @default(cuid())
+  companyName String
+  siret       String?
+  address     String?
+  city        String?
+  postalCode  String?
+  country     String  @default("France")
+  email       String?
+  phone       String?
+  notes       String?
+
+  contacts       Contact[]
+  equipment      Equipment[]
+  purchaseOrders PurchaseOrder[]
+  invoices       Invoice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("suppliers")
+}
+
+model Contact {
+  id         String    @id @default(cuid())
+  firstName  String
+  lastName   String
+  email      String?
+  phone      String?
+  role       String?
+  customerId String?
+  supplierId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("contacts")
+}
+
+enum RequestPriority {
+  BASSE
+  NORMALE
+  HAUTE
+  URGENTE
+}
+
+enum RequestStatus {
+  NOUVELLE
+  EN_RECHERCHE
+  PROPOSITION_ENVOYEE
+  CONVERTIE
+  ABANDONNEE
+}
+
+model Request {
+  id          String          @id @default(cuid())
+  customerId  String
+  customer    Customer        @relation(fields: [customerId], references: [id])
+  title       String
+  description String?
+  criteria    Json?
+  priority    RequestPriority @default(NORMALE)
+  status      RequestStatus   @default(NOUVELLE)
+
+  matches EquipmentMatch[]
+  tasks   Task[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("requests")
+}
+
+// ─────────────────────────────────────────────────────────
+// Sourcing
+// ─────────────────────────────────────────────────────────
+
+model EquipmentCategory {
+  id       String              @id @default(cuid())
+  name     String
+  parentId String?
+  parent   EquipmentCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children EquipmentCategory[] @relation("CategoryHierarchy")
+
+  equipment Equipment[]
+
+  @@map("equipment_categories")
+}
+
+enum EquipmentCondition {
+  NEUF
+  OCCASION
+  RECONDITIONNE
+}
+
+enum EquipmentStatus {
+  DISPONIBLE
+  RESERVE
+  VENDU
+  ARCHIVE
+}
+
+model Equipment {
+  id          String             @id @default(cuid())
+  supplierId  String?
+  supplier    Supplier?          @relation(fields: [supplierId], references: [id])
+  categoryId  String?
+  category    EquipmentCategory? @relation(fields: [categoryId], references: [id])
+  name        String
+  brand       String?
+  model       String?
+  year        Int?
+  condition   EquipmentCondition @default(OCCASION)
+  priceHt     Decimal?           @db.Decimal(12, 2)
+  description String?
+  location    String?
+  status      EquipmentStatus    @default(DISPONIBLE)
+
+  matches       EquipmentMatch[]
+  quoteItems    QuoteItem[]
+  purchaseItems PurchaseItem[]
+  saleItems     SaleItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("equipment")
+}
+
+model EquipmentMatch {
+  id                String    @id @default(cuid())
+  requestId         String
+  request           Request   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  equipmentId       String
+  equipment         Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  matchScore        Int
+  matchedCriteria   Json?
+  unmatchedCriteria Json?
+
+  createdAt DateTime @default(now())
+
+  @@unique([requestId, equipmentId])
+  @@map("equipment_matches")
+}
+
+// ─────────────────────────────────────────────────────────
+// Commercial — devis & ventes
+// ─────────────────────────────────────────────────────────
+
+enum QuoteStatus {
+  BROUILLON
+  ENVOYE
+  ACCEPTE
+  REFUSE
+  EXPIRE
+}
+
+model Quote {
+  id         String      @id @default(cuid())
+  number     String      @unique
+  customerId String
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  status     QuoteStatus @default(BROUILLON)
+  issueDate  DateTime    @default(now())
+  validUntil DateTime?
+  totalHt    Decimal     @default(0) @db.Decimal(12, 2)
+  totalTva   Decimal     @default(0) @db.Decimal(12, 2)
+  totalTtc   Decimal     @default(0) @db.Decimal(12, 2)
+  notes      String?
+
+  items QuoteItem[]
+  sale  Sale?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("quotes")
+}
+
+model QuoteItem {
+  id          String     @id @default(cuid())
+  quoteId     String
+  quote       Quote      @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  equipmentId String?
+  equipment   Equipment? @relation(fields: [equipmentId], references: [id])
+  description String
+  quantity    Int        @default(1)
+  unitPriceHt Decimal    @db.Decimal(12, 2)
+  vatRate     Decimal    @default(20) @db.Decimal(5, 2)
+
+  @@map("quote_items")
+}
+
+enum SaleStatus {
+  COMMANDE
+  LIVRAISON
+  FACTUREE
+  PAYEE
+  ANNULEE
+}
+
+model Sale {
+  id          String     @id @default(cuid())
+  number      String     @unique
+  customerId  String
+  customer    Customer   @relation(fields: [customerId], references: [id])
+  quoteId     String?    @unique
+  quote       Quote?     @relation(fields: [quoteId], references: [id])
+  status      SaleStatus @default(COMMANDE)
+  totalHt     Decimal    @default(0) @db.Decimal(12, 2)
+  totalTva    Decimal    @default(0) @db.Decimal(12, 2)
+  totalTtc    Decimal    @default(0) @db.Decimal(12, 2)
+  totalCostHt Decimal    @default(0) @db.Decimal(12, 2)
+  marginHt    Decimal    @default(0) @db.Decimal(12, 2)
+
+  items    SaleItem[]
+  invoices Invoice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id          String     @id @default(cuid())
+  saleId      String
+  sale        Sale       @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  equipmentId String?
+  equipment   Equipment? @relation(fields: [equipmentId], references: [id])
+  description String
+  quantity    Int        @default(1)
+  unitPriceHt Decimal    @db.Decimal(12, 2)
+  unitCostHt  Decimal    @default(0) @db.Decimal(12, 2)
+  vatRate     Decimal    @default(20) @db.Decimal(5, 2)
+
+  @@map("sales_items")
+}
+
+// ─────────────────────────────────────────────────────────
+// Achats
+// ─────────────────────────────────────────────────────────
+
+enum PurchaseOrderStatus {
+  BROUILLON
+  COMMANDE
+  RECU
+  FACTURE
+  ANNULE
+}
+
+model PurchaseOrder {
+  id            String              @id @default(cuid())
+  number        String              @unique
+  supplierId    String
+  supplier      Supplier            @relation(fields: [supplierId], references: [id])
+  status        PurchaseOrderStatus @default(BROUILLON)
+  orderDate     DateTime            @default(now())
+  expectedDate  DateTime?
+  receivedDate  DateTime?
+  transportCost Decimal             @default(0) @db.Decimal(12, 2)
+  otherFees     Decimal             @default(0) @db.Decimal(12, 2)
+  totalHt       Decimal             @default(0) @db.Decimal(12, 2)
+  totalTva      Decimal             @default(0) @db.Decimal(12, 2)
+  totalTtc      Decimal             @default(0) @db.Decimal(12, 2)
+
+  items    PurchaseItem[]
+  invoices Invoice[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("purchase_orders")
+}
+
+model PurchaseItem {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  equipmentId     String?
+  equipment       Equipment?    @relation(fields: [equipmentId], references: [id])
+  description     String
+  quantity        Int           @default(1)
+  unitPriceHt     Decimal       @db.Decimal(12, 2)
+  vatRate         Decimal       @default(20) @db.Decimal(5, 2)
+
+  @@map("purchase_items")
+}
+
+// ─────────────────────────────────────────────────────────
+// Finance
+// ─────────────────────────────────────────────────────────
+
+enum InvoiceType {
+  CLIENT
+  FOURNISSEUR
+  AVOIR
+  ACOMPTE
+}
+
+enum InvoiceStatus {
+  BROUILLON
+  ENVOYEE
+  PAYEE
+  EN_RETARD
+  ANNULEE
+}
+
+model Invoice {
+  id              String         @id @default(cuid())
+  number          String         @unique
+  type            InvoiceType
+  status          InvoiceStatus  @default(BROUILLON)
+  issueDate       DateTime       @default(now())
+  dueDate         DateTime?
+  saleId          String?
+  sale            Sale?          @relation(fields: [saleId], references: [id])
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  customerId      String?
+  customer        Customer?      @relation(fields: [customerId], references: [id])
+  supplierId      String?
+  supplier        Supplier?      @relation(fields: [supplierId], references: [id])
+  totalHt         Decimal        @default(0) @db.Decimal(12, 2)
+  totalTva        Decimal        @default(0) @db.Decimal(12, 2)
+  totalTtc        Decimal        @default(0) @db.Decimal(12, 2)
+
+  items    InvoiceItem[]
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Int     @default(1)
+  unitPriceHt Decimal @db.Decimal(12, 2)
+  vatRate     Decimal @default(20) @db.Decimal(5, 2)
+
+  @@map("invoice_items")
+}
+
+enum PaymentMethod {
+  VIREMENT
+  CHEQUE
+  CB
+  ESPECES
+  AUTRE
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice       @relation(fields: [invoiceId], references: [id])
+  amount      Decimal       @db.Decimal(12, 2)
+  paymentDate DateTime      @default(now())
+  method      PaymentMethod
+  reference   String?
+
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  @@map("payments")
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  label       String
+  amount      Decimal  @db.Decimal(12, 2)
+  vatAmount   Decimal  @default(0) @db.Decimal(12, 2)
+  category    String?
+  expenseDate DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("expenses")
+}
+
+enum BankTransactionType {
+  ENCAISSEMENT
+  DECAISSEMENT
+}
+
+model BankAccount {
+  id             String  @id @default(cuid())
+  name           String
+  currency       String  @default("EUR")
+  openingBalance Decimal @default(0) @db.Decimal(12, 2)
+
+  transactions BankTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("bank_accounts")
+}
+
+model BankTransaction {
+  id              String              @id @default(cuid())
+  bankAccountId   String
+  bankAccount     BankAccount         @relation(fields: [bankAccountId], references: [id])
+  type            BankTransactionType
+  amount          Decimal             @db.Decimal(12, 2)
+  label           String
+  transactionDate DateTime            @default(now())
+
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  @@map("bank_transactions")
+}
+
+// ─────────────────────────────────────────────────────────
+// Organisation
+// ─────────────────────────────────────────────────────────
+
+model Project {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+
+  tasks Task[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("projects")
+}
+
+enum TaskStatus {
+  A_FAIRE
+  EN_COURS
+  EN_ATTENTE
+  TERMINEE
+}
+
+enum TaskPriority {
+  BASSE
+  NORMALE
+  HAUTE
+  URGENTE
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(A_FAIRE)
+  priority    TaskPriority @default(NORMALE)
+  dueDate     DateTime?
+
+  assigneeId String?
+  assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  requestId String?
+  request   Request? @relation(fields: [requestId], references: [id])
+
+  // Lien polymorphe additionnel vers une autre entité (client, achat, vente…)
+  entityType String?
+  entityId   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("tasks")
+}
+
+// ─────────────────────────────────────────────────────────
+// Transverse
+// ─────────────────────────────────────────────────────────
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  changes    Json?
+  createdAt  DateTime @default(now())
+
+  @@map("activity_logs")
+}
