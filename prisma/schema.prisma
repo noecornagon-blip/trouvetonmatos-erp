@@ -10,6 +10,14 @@ datasource db {
   provider = "postgresql"
 }
 
+// Compteurs pour la numérotation séquentielle des documents (DEV-2026-0001, etc.)
+model Counter {
+  key   String @id
+  value Int    @default(0)
+
+  @@map("counters")
+}
+
 // ─────────────────────────────────────────────────────────
 // Identité & accès
 // ─────────────────────────────────────────────────────────
@@ -562,6 +570,8 @@ model BankTransaction {
   amount          Decimal             @db.Decimal(12, 2)
   label           String
   transactionDate DateTime            @default(now())
+  reconciled      Boolean             @default(false)
+  importBatch     String?
 
   createdAt DateTime @default(now())
   createdBy String?
@@ -646,4 +656,129 @@ model ActivityLog {
   createdAt  DateTime @default(now())
 
   @@map("activity_logs")
+}
+
+// ─────────────────────────────────────────────────────────
+// Vague 2 — Finance (comptabilité, TVA)
+// ─────────────────────────────────────────────────────────
+
+enum AccountingSourceType {
+  INVOICE
+  PAYMENT
+  EXPENSE
+}
+
+model AccountingEntry {
+  id            String               @id @default(cuid())
+  entryDate     DateTime             @default(now())
+  label         String
+  debitAccount  String
+  creditAccount String
+  amount        Decimal              @db.Decimal(12, 2)
+  sourceType    AccountingSourceType
+  sourceId      String
+
+  createdAt DateTime @default(now())
+
+  @@map("accounting_entries")
+}
+
+enum VatRecordStatus {
+  BROUILLON
+  VALIDE
+}
+
+model VatRecord {
+  id            String          @id @default(cuid())
+  periodStart   DateTime
+  periodEnd     DateTime
+  vatCollected  Decimal         @default(0) @db.Decimal(12, 2)
+  vatDeductible Decimal         @default(0) @db.Decimal(12, 2)
+  status        VatRecordStatus @default(BROUILLON)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("vat_records")
+}
+
+// ─────────────────────────────────────────────────────────
+// Vague 3 — Croissance (documents, réseaux sociaux)
+// ─────────────────────────────────────────────────────────
+
+model Document {
+  id         String @id @default(cuid())
+  entityType String
+  entityId   String
+  filename   String
+  path       String
+  mimeType   String
+  size       Int
+
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  @@map("documents")
+}
+
+enum SocialPlatform {
+  LINKEDIN
+  FACEBOOK
+  INSTAGRAM
+  AUTRE
+}
+
+enum SocialPostStatus {
+  BROUILLON
+  PLANIFIE
+  PUBLIE
+}
+
+model SocialPost {
+  id          String           @id @default(cuid())
+  platform    SocialPlatform
+  content     String
+  scheduledAt DateTime?
+  status      SocialPostStatus @default(BROUILLON)
+  publishedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("social_posts")
+}
+
+// ─────────────────────────────────────────────────────────
+// Vague 4 — IA & automatisation
+// ─────────────────────────────────────────────────────────
+
+model AutomationRule {
+  id            String  @id @default(cuid())
+  name          String
+  active        Boolean @default(true)
+  triggerEntity String
+  triggerEvent  String
+  conditions    Json
+  actions       Json
+
+  logs AutomationLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  @@map("automation_rules")
+}
+
+model AutomationLog {
+  id         String         @id @default(cuid())
+  ruleId     String
+  rule       AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  entityType String
+  entityId   String
+  result     Json?
+  createdAt  DateTime       @default(now())
+
+  @@map("automation_logs")
 }

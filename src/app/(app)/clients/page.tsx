@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/page-header";
 
 const TYPE_LABEL: Record<string, string> = {
   PROSPECT: "Prospect",
@@ -26,9 +28,10 @@ export default async function ClientsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold text-zinc-900">
-        Clients & prospects
-      </h1>
+      <PageHeader
+        title="Clients & prospects"
+        action={{ href: "/clients/new", label: "Nouveau client" }}
+      />
 
       <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
         <table className="w-full text-sm">
@@ -43,9 +46,11 @@ export default async function ClientsPage() {
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {customers.map((customer) => (
-              <tr key={customer.id}>
+              <tr key={customer.id} className="hover:bg-zinc-50">
                 <td className="px-4 py-3 font-medium text-zinc-900">
-                  {customer.companyName}
+                  <Link href={`/clients/${customer.id}`}>
+                    {customer.companyName}
+                  </Link>
                 </td>
                 <td className="px-4 py-3 text-zinc-600">
                   {TYPE_LABEL[customer.type]}
