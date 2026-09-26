@@ -17,15 +17,24 @@ export default async function AppLayout({
     <div className="flex min-h-screen flex-1">
       <Sidebar />
       <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-6 py-3">
-          <div className="text-sm text-zinc-500">
-            Connecté en tant que{" "}
-            <span className="font-medium text-zinc-900">
-              {session.user.name}
-            </span>{" "}
-            — {session.user.role}
+        <header className="flex items-center justify-between gap-4 border-b border-zinc-200 bg-white px-6 py-3">
+          <form action="/recherche" method="GET" className="w-full max-w-sm">
+            <input
+              name="q"
+              placeholder="Rechercher…"
+              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm outline-none focus:border-zinc-900"
+            />
+          </form>
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-zinc-500">
+              Connecté en tant que{" "}
+              <span className="font-medium text-zinc-900">
+                {session.user.name}
+              </span>{" "}
+              — {session.user.role}
+            </div>
+            <SignOutButton />
           </div>
-          <SignOutButton />
         </header>
         <main className="flex-1 bg-zinc-50 p-6">{children}</main>
       </div>

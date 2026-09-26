@@ -6,7 +6,10 @@ import { usePathname } from "next/navigation";
 const NAV_GROUPS = [
   {
     label: "Pilotage",
-    links: [{ href: "/dashboard", label: "Dashboard" }],
+    links: [
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/journal", label: "Journal d'activité" },
+    ],
   },
   {
     label: "Commercial",
